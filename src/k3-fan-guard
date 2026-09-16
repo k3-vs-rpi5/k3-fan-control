@@ -1,0 +1,132 @@
+#!/bin/sh
+# Keep the SpacemiT K3 Pico fan at or above a pinned cooling level so it runs
+# continuously and never stops.
+#
+# The board exposes the fan twice:
+#   - hwmon "pwmfan"  with pwm1 and pwm1_enable
+#   - thermal cooling device "pwm-fan" with cur_state 0..max_state
+# The cooling device is bound to thermal_zone3 (thermal_cluster0), whose only
+# registered policy is step_wise, so the kernel lowers cur_state when the board
+# cools down and can stop the fan. This guard re-asserts the configured floor;
+# it never lowers a higher level that the kernel selected for a hot board.
+
+set -eu
+
+CONF=${K3_FAN_CONF:-/etc/k3-fan-control.conf}
+# shellcheck disable=SC1090
+[ -r "$CONF" ] && . "$CONF"
+
+MIN_STATE=${FAN_MIN_STATE:-8}
+INTERVAL=${FAN_REASSERT_SECONDS:-1}
+
+log() {
+    printf 'k3-fan-control: %s\n' "$*"
+}
+
+die() {
+    printf 'k3-fan-control: %s\n' "$*" >&2
+    exit 1
+}
+
+find_hwmon() {
+    for path in /sys/class/hwmon/hwmon*; do
+        [ -r "$path/name" ] || continue
+        if [ "$(cat "$path/name")" = "pwmfan" ]; then
+            printf '%s\n' "$path"
+            return 0
+        fi
+    done
+    return 1
+}
+
+find_cdev() {
+    for path in /sys/class/thermal/cooling_device*; do
+        [ -r "$path/type" ] || continue
+        if [ "$(cat "$path/type")" = "pwm-fan" ]; then
+            printf '%s\n' "$path"
+            return 0
+        fi
+    done
+    return 1
+}
+
+read_number() {
+    cat "$1" 2>/dev/null || printf '0'
+}
+
+fan_state() {
+    read_number "$(find_cdev)/cur_state"
+}
+
+fan_pwm() {
+    read_number "$(find_hwmon)/pwm1"
+}
+
+apply_once() {
+    cdev=$(find_cdev) || die "no pwm-fan cooling device found"
+    hwmon=$(find_hwmon) || die "no pwmfan hwmon device found"
+    max_state=$(read_number "$cdev/max_state")
+
+    if [ "$MIN_STATE" -gt "$max_state" ]; then
+        die "FAN_MIN_STATE=$MIN_STATE exceeds the fan maximum of $max_state"
+    fi
+
+    # Manual mode keeps pwm1 authoritative for direct writes and is the mode the
+    # vendor device tree already selects.
+    if [ "$(read_number "$hwmon/pwm1_enable")" != "1" ]; then
+        printf '1\n' > "$hwmon/pwm1_enable" || die "cannot select manual fan mode"
+    fi
+
+    state=$(read_number "$cdev/cur_state")
+    if [ "$state" -lt "$MIN_STATE" ]; then
+        printf '%s\n' "$MIN_STATE" > "$cdev/cur_state" || die "cannot raise the fan level"
+        log "raised fan level $state -> $MIN_STATE"
+    fi
+
+    pwm=$(read_number "$hwmon/pwm1")
+    if [ "$pwm" -eq 0 ]; then
+        log "warning: fan stopped (pwm1=0) although level $MIN_STATE was requested"
+        return 1
+    fi
+    return 0
+}
+
+status_text() {
+    cdev=$(find_cdev) || die "no pwm-fan cooling device found"
+    hwmon=$(find_hwmon) || die "no pwmfan hwmon device found"
+    printf 'cooling_device=%s\n' "$cdev"
+    printf 'cur_state=%s max_state=%s floor=%s\n' \
+        "$(read_number "$cdev/cur_state")" \
+        "$(read_number "$cdev/max_state")" \
+        "$MIN_STATE"
+    printf 'pwm1=%s pwm1_enable=%s\n' \
+        "$(read_number "$hwmon/pwm1")" \
+        "$(read_number "$hwmon/pwm1_enable")"
+    for zone in /sys/class/thermal/thermal_zone*; do
+        [ -r "$zone/type" ] || continue
+        printf 'zone %s %s temp=%s\n' "$(cat "$zone/type")" \
+            "$(read_number "$zone/policy")" "$(read_number "$zone/temp")"
+    done
+    tach=/sys/class/hwmon/hwmon7/fan1_input
+    [ -r "$tach" ] && printf 'fan_tach_rpm=%s\n' "$(read_number "$tach")"
+    return 0
+}
+
+case "${1:-}" in
+    --status)
+        status_text
+        ;;
+    --once)
+        apply_once && log "fan level is at or above $MIN_STATE"
+        ;;
+    "")
+        apply_once || true
+        while :; do
+            apply_once || true
+            sleep "$INTERVAL"
+        done
+        ;;
+    *)
+        die "usage: k3-fan-guard [--once|--status]"
+        ;;
+esac

@@ -1,0 +1,16 @@
+[Unit]
+Description=K3 Pico continuous fan policy (keep the fan running)
+Documentation=file:///usr/local/share/doc/k3-fan-control/README.md
+ConditionPathExists=/sys/class/thermal
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/k3-fan-control/k3-fan-guard
+ExecReload=/usr/local/lib/k3-fan-control/k3-fan-guard --once
+Restart=always
+RestartSec=1
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target
