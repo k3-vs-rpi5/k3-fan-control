@@ -65,3 +65,13 @@ hardware/k3-fan-control/scripts/run.sh --uninstall
 
 - 守护进程只保证下限，不设上限：板子变热时内核仍可给出更高的级别。
 - `scripts/build.sh` 只校验语法、配置和 unit；风扇行为只能在板卡上验证。
+
+## 工作区集成
+
+本仓库位于工作区的 `hardware/k3-fan-control`，自带 Git 历史。它目前还没有登记
+到工作区 manifest 中，因为 manifest 会从共享远端解析 `k3-fan-control.git`，而
+首次 push 仍需人工批准。远端仓库就绪后，把下面这行加入 `default.xml`：
+
+```xml
+<project name="k3-fan-control.git" path="hardware/k3-fan-control" />
+```

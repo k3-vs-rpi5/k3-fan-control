@@ -73,3 +73,15 @@ Edit `/etc/k3-fan-control.conf` on the board, then run
   a higher level by the kernel.
 - `scripts/build.sh` validates syntax, configuration, and the unit only; fan
   behaviour can only be verified on the board.
+
+## Workspace integration
+
+This repository lives at `hardware/k3-fan-control` inside the workspace and
+carries its own Git history. It is not listed in the workspace manifest yet,
+because the manifest resolves `k3-fan-control.git` from the shared remote and
+the first push still needs human approval. Once the remote repository exists,
+add this entry to `default.xml`:
+
+```xml
+<project name="k3-fan-control.git" path="hardware/k3-fan-control" />
+```
