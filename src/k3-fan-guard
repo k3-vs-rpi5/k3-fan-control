@@ -13,11 +13,22 @@
 set -eu
 
 CONF=${K3_FAN_CONF:-/etc/k3-fan-control.conf}
-# shellcheck disable=SC1090
-[ -r "$CONF" ] && . "$CONF"
 
-MIN_STATE=${FAN_MIN_STATE:-8}
-INTERVAL=${FAN_REASSERT_SECONDS:-1}
+# The configuration is re-read at the start of every interval, so an edited
+# floor takes effect within one second on the running service and a reload is
+# an immediate extra application rather than the only way to apply it.
+load_conf() {
+    MIN_STATE=8
+    INTERVAL=1
+    if [ -r "$CONF" ]; then
+        # shellcheck disable=SC1090
+        . "$CONF"
+    fi
+    MIN_STATE=${FAN_MIN_STATE:-8}
+    INTERVAL=${FAN_REASSERT_SECONDS:-1}
+}
+
+load_conf
 
 log() {
     printf 'k3-fan-control: %s\n' "$*"
@@ -122,6 +133,7 @@ case "${1:-}" in
     "")
         apply_once || true
         while :; do
+            load_conf
             apply_once || true
             sleep "$INTERVAL"
         done

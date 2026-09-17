@@ -56,21 +56,30 @@ board. `sshpass`, `ssh`, and `scp` are required on the host.
 - `FAN_REASSERT_SECONDS` is the re-assert interval. The default `1` is short
   enough to correct a kernel level change almost immediately.
 
-Edit `/etc/k3-fan-control.conf` on the board, then run
-`systemctl reload k3-fan-continuous.service` to apply the new floor.
+Edit `/etc/k3-fan-control.conf` on the board: the guard re-reads the file at
+the start of every interval, so a new floor is in force within one second, and
+`systemctl reload k3-fan-continuous.service` applies it immediately instead of
+waiting for the next tick.
 
 ## Verification
 
 - `k3-fan-guard --status` prints the cooling device, level, floor, `pwm1`,
-  every thermal zone policy and temperature, and the EC fan tachometer when the
-  board exposes it.
+  every thermal zone policy and temperature, and, as a best-effort extra, the
+  EC fan tachometer at the `hwmon7/fan1_input` path this board exposes.
 - The unit uses `Restart=always`, so a guard failure is recovered within a
   second.
+- `tests/guard-test.sh` checks the floor logic without the board: it builds a
+  fake sysfs tree inside a private mount namespace and confirms that the guard
+  raises a level below the floor, uses the configured floor, and picks up an
+  edited floor while it is running.
 
 ## Limitations
 
 - The guard enforces a floor and never a ceiling: a hot board may still be given
   a higher level by the kernel.
+- `--uninstall` stops and disables the service and removes the guard and the
+  unit, but leaves `/etc/k3-fan-control.conf` and the installed documentation in
+  place, so a reinstall keeps an edited floor instead of silently resetting it.
 - `scripts/build.sh` validates syntax, configuration, and the unit only; fan
   behaviour can only be verified on the board.
 

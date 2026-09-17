@@ -52,18 +52,25 @@ hardware/k3-fan-control/scripts/run.sh --uninstall
 - `FAN_REASSERT_SECONDS` 是重新施加的间隔。默认 `1` 足以在内核改动级别后几乎
   立即纠正。
 
-在板卡上编辑 `/etc/k3-fan-control.conf`，然后执行
-`systemctl reload k3-fan-continuous.service` 应用新的下限。
+在板卡上编辑 `/etc/k3-fan-control.conf` 即可：守护进程每个间隔开始时都会重新
+读取该文件，因此新的下限会在一秒内生效，而执行
+`systemctl reload k3-fan-continuous.service` 可以立即生效，不必等下一个周期。
 
 ## 验证
 
 - `k3-fan-guard --status` 会打印冷却设备、当前级别、下限、`pwm1`、每个温区的
-  策略与温度，以及板卡提供时的 EC 风扇转速。
+  策略与温度，并尽力附带本板暴露的 `hwmon7/fan1_input` EC 风扇转速。
 - 服务使用 `Restart=always`，守护进程异常会在一秒内恢复。
+- `tests/guard-test.sh` 无需板卡即可校验下限逻辑：它在私有 mount namespace 中
+  构造伪造的 sysfs 树，确认守护进程会抬升低于下限的级别、采用配置的下限，并在
+  运行中接收到编辑后的下限。
 
 ## 限制
 
 - 守护进程只保证下限，不设上限：板子变热时内核仍可给出更高的级别。
+- `--uninstall` 会停用并禁用服务、删除守护进程与 unit，但保留
+  `/etc/k3-fan-control.conf` 与已安装文档，因此重新安装会沿用编辑过的下限，
+  而不会静默复位。
 - `scripts/build.sh` 只校验语法、配置和 unit；风扇行为只能在板卡上验证。
 
 ## 工作区集成

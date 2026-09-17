@@ -15,6 +15,7 @@ done
 sh -n src/k3-fan-guard
 sh -n scripts/build.sh
 sh -n scripts/run.sh
+sh -n tests/guard-test.sh
 
 # The configuration file is sourced by the guard, so a parse failure would take
 # the fan policy down with it.
@@ -35,7 +36,8 @@ grep -q '^ExecStart=/usr/local/lib/k3-fan-control/k3-fan-guard$' \
 grep -q '^Restart=always$' systemd/k3-fan-continuous.service
 
 if command -v shellcheck >/dev/null 2>&1; then
-    shellcheck -s sh src/k3-fan-guard scripts/build.sh scripts/run.sh
+    shellcheck -s sh src/k3-fan-guard scripts/build.sh scripts/run.sh \
+        tests/guard-test.sh
     echo "shellcheck: passed"
 fi
 
