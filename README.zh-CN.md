@@ -38,7 +38,7 @@ hardware/k3-fan-control/scripts/run.sh --uninstall
 权限必须为 `0600`，且绝不打印其内容。交付方向是主机到设备：由主机推送负载，
 并在板卡上启用服务。主机需要 `sshpass`、`ssh` 与 `scp`。
 
-板卡地址变化时无需修改该记录：在调用时导出 `K3_BOARD_HOST=<地址>` 即可，例如
+板卡地址变化时无需修改该记录：在调用时导出 `K3_BOARD_HOST=<address>` 即可，例如
 `K3_BOARD_HOST=192.168.100.215 scripts/run.sh`。
 
 ## 板卡上安装的文件
