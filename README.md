@@ -42,6 +42,10 @@ hardware/k3-fan-control/scripts/run.sh --uninstall
 is host to device: the host pushes the payload and enables the service on the
 board. `sshpass`, `ssh`, and `scp` are required on the host.
 
+A board whose address changed is reached without editing that record: export
+`K3_BOARD_HOST=<address>` for the invocation, for example
+`K3_BOARD_HOST=192.168.100.215 scripts/run.sh`.
+
 ## Files installed on the board
 
 - `/usr/local/lib/k3-fan-control/k3-fan-guard`, the guard itself

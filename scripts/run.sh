@@ -53,6 +53,10 @@ if [ -z "$host" ] || [ -z "$user" ] || [ -z "$secret" ]; then
     exit 1
 fi
 
+# A board whose address changed can be reached without editing the credential
+# record: export K3_BOARD_HOST=<address> for this invocation.
+[ -n "${K3_BOARD_HOST:-}" ] && host=$K3_BOARD_HOST
+
 SSHPASS=$secret
 export SSHPASS
 SSH_OPTS="-o StrictHostKeyChecking=accept-new \
